@@ -26,7 +26,7 @@ R_LIBS_TO_INSTALL="${R_LIBS_TO_INSTALL:-}"
 R_SRC="${1:-$R_SRC}"
 if [ -d "${R_SRC}" ]; then
   # Loop over all available R code files looking for library statements:
-  echo "R_SRCR='${R_SRC}'"
+  echo "R_SRC='${R_SRC}'"
   R_FILES=$(mktemp)
   find "${R_SRC}" \( -name "*.R" -o -name "*.Rmd" \) -type f -print > "${R_FILES}"
   while read -r R_FILE; do
