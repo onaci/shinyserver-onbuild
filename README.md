@@ -39,3 +39,7 @@ FROM onaci/shinyserver-onbuild:3.5.1
 ENV MY_THEME="my_theme.css"
 ENV MY_HOME_URL="https://www.example.com/"
 ```  
+
+## DockerHub
+
+You can pull a pre-build docker image based on this repository from https://hub.docker.com/r/onaci/shinyserver-onbuild/
