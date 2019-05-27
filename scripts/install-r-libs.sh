@@ -1,4 +1,5 @@
 #!/bin/sh
+#set -e
 #------------------------------------------------------------------------------
 # Ensure that all the R-libraries required by an application are installed.
 #
@@ -7,7 +8,7 @@
 #
 # Uses the following predefined shell (or environment) variables:
 # - MRAN = the URL of the repository from which libraries should be fetched.
-# - R_LIBS_INSTALLED = space-separated list of libraries which are *known* to 
+# - R_LIBS_INSTALLED = space-separated list of libraries which are *known* to
 #                      already have been installed. (This will be appended to)
 #
 # - R_LIBS_TO_INSTALL = space-seperated list of libraries that should be
@@ -43,13 +44,42 @@ else
 fi
 echo "R_LIBS_TO_INSTALL='${R_LIBS_TO_INSTALL}'"
 
+R_LIBS_GITHUB="${R_LIBS_GITHUB:-}"
+echo "R_LIBS_GITHUB='${R_LIBS_GITHUB}'"
+if [ -n "${R_LIBS_GITHUB}" ]; then
+  # Some libraries should be installed as devtools from GitHub.
+  # This means we'll need devtools and an upgraded fs package.
+  R -q -e "install.packages('devtools', repos='${MRAN}')"
+  R -q -e "install.packages('fs', repos='${MRAN}')"
+  R_LIBS_INSTALLED="${R_LIBS_INSTALLED} devtools fs"
+fi
+
 # Ensure all the requested libraries are installed.
 for R_LIB in $R_LIBS_TO_INSTALL; do
   echo "R_LIB='${R_LIB}'";
   if echo "${R_LIBS_INSTALLED}" | grep -Eq "(^|.*\\s)${R_LIB}(\\s.*|$)"; then
     echo "The ${R_LIB} library has already been installed"
   else
-    R -q -e "install.packages('${R_LIB}', repos='${MRAN}')"
+    GITHUB_REPO=$(echo "${R_LIBS_GITHUB}" | tr ' ' '\n' | grep -E "^\\w*/${R_LIB}(/|@|#|$)")
+    echo "Github repository for ${R_LIB} is '${GITHUB_REPO}'"
+    if [ -n "${GITHUB_REPO}" ]; then
+      R -q -e "devtools::install_github('${GITHUB_REPO}')"
+      RESULT=$?
+    else
+      R -q -e "install.packages('${R_LIB}', repos='${MRAN}')"
+      RESULT=$?
+    fi
+    if [ $RESULT -ne 0 ]; then
+      echo "Unexpected error attempting to install R Library '${R_LIB}'"
+      exit $RESULT
+    fi
+    FIND_RESULT=$(R -q -e "find.package('${R_LIB}')")
+    LIB_PATH=$(echo "${FIND_RESULT}" | tr '\n' ' ' | sed 's/^.*"\(.*\)".*$/\1/')
+    if [ ! -e "${LIB_PATH}" ]; then
+      echo "Unable to find installed R Library '${R_LIB}'. LIB_PATH='${LIB_PATH}', FIND_RESULT='${FIND_RESULT}'"
+      exit 1
+    fi
+    echo "Successfully installed R Library '${R_LIB}' at '${LIB_PATH}'"
     R_LIBS_INSTALLED="${R_LIBS_INSTALLED} ${R_LIB}"
   fi
 done
